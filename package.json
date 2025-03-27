@@ -1,0 +1,22 @@
+{
+  "dependencies": {
+    "child_process": "^1.0.2",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "gl": "^8.1.6",
+    "os": "^0.1.2",
+    "systeminformation": "^5.25.11",
+    "websocket": "^1.0.35",
+    "ws": "^8.18.1"
+  },
+  "name": "os3project",
+  "version": "1.0.0",
+  "main": "sever.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

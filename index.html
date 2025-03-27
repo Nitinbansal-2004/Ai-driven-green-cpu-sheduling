@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Process Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --danger: #ef4444;
+            --danger-dark: #dc2626;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --dark: #1e293b;
+            --darker: #0f172a;
+            --light: #f8fafc;
+            --gray: #94a3b8;
+            --dark-gray: #334155;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--darker);
+            color: var(--light);
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        #particles-js {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            opacity: 0.3;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            position: relative;
+        }
+
+        .panel {
+            background: linear-gradient(145deg, rgba(30,41,59,0.8), rgba(15,23,42,0.9));
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .panel:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 20px -5px rgba(0,0,0,0.2);
+        }
+
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), transparent);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .panel-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--light);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-title i {
+            color: var(--primary);
+        }
+
+        .panel-full {
+            grid-column: span 2;
+        }
+
+        h1 {
+            color: var(--light);
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 700;
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, var(--primary), #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: inline-block;
+            position: relative;
+            padding-bottom: 10px;
+        }
+
+        h1::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), #8b5cf6);
+            border-radius: 3px;
+        }
+
+        .stat-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: rgba(30,41,59,0.6);
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            border-left: 4px solid var(--primary);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .stat-card.danger {
+            border-left-color: var(--danger);
+        }
+
+        .stat-card.warning {
+            border-left-color: var(--warning);
+        }
+
+        .stat-card.success {
+            border-left-color: var(--success);
+        }
+
+        .stat-title {
+            font-size: 0.875rem;
+            color: var(--gray);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--light);
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 300px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .process-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .process-item {
+            background: rgba(30,41,59,0.6);
+            border-radius: 8px;
+            padding: 12px 15px;
+            display: flex;
+            align-items: center;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .process-item:hover {
+            background: rgba(30,41,59,0.8);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+        }
+
+        .process-item.warning::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--warning);
+            border-radius: 3px 0 0 3px;
+        }
+
+        .process-item.danger::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--danger);
+            border-radius: 3px 0 0 3px;
+        }
+
+        .process-name {
+            flex: 2;
+            font-weight: 500;
+            color: var(--light);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .process-pid, .process-cpu {
+            flex: 1;
+            text-align: center;
+            color: var(--gray);
+            font-size: 0.875rem;
+        }
+
+        .process-time {
+            flex: 1;
+            text-align: center;
+            color: var(--gray);
+            font-size: 0.875rem;
+        }
+
+        .process-cpu.high {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .process-actions {
+            flex: 1;
+            text-align: right;
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: var(--danger-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn-warning {
+            background-color: var(--warning);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background-color: #e0920c;
+            transform: translateY(-2px);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .status-connected {
+            background-color: rgba(16,185,129,0.2);
+            color: var(--success);
+        }
+
+        .status-disconnected {
+            background-color: rgba(239,68,68,0.2);
+            color: var(--danger);
+        }
+
+        .status-connecting {
+            background-color: rgba(245,158,11,0.2);
+            color: var(--warning);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: var(--gray);
+            font-size: 0.875rem;
+        }
+
+        .auto-terminate-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--dark-gray);
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--success);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 10px;
+        }
+
+        /* Glow effects */
+        .glow {
+            animation: glow 2s infinite alternate;
+        }
+
+        @keyframes glow {
+            from {
+                box-shadow: 0 0 5px rgba(99, 102, 241, 0.5);
+            }
+            to {
+                box-shadow: 0 0 15px rgba(99, 102, 241, 0.8);
+            }
+        }
+
+        /* Pulse animation for warning */
+        @keyframes pulse-warning {
+            0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+        }
+
+        .pulse-warning {
+            animation: pulse-warning 1.5s infinite;
+        }
+
+        /* Pulse animation for danger */
+        @keyframes pulse-danger {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .pulse-danger {
+            animation: pulse-danger 1.5s infinite;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .panel-full {
+                grid-column: span 1;
+            }
+            .stat-cards {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stat-cards {
+                grid-template-columns: 1fr;
+            }
+            .process-item {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            .process-name, .process-pid, .process-cpu, .process-time, .process-actions {
+                flex: 100%;
+                text-align: left;
+            }
+            .process-actions {
+                text-align: right;
+                margin-top: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="particles-js"></div>
+    <div class="container">
+        <h1><i class="fas fa-heartbeat"></i> System Pulse Monitor</h1>
+        
+        <!-- System Overview Panel -->
+        <div class="panel panel-full glow">
+            <div class="panel-header">
+                <div class="panel-title"><i class="fas fa-tachometer-alt"></i> System Overview</div>
+                <div id="uptime" class="status-badge"><i class="fas fa-clock"></i> Loading...</div>
+            </div>
+            
+            <div class="stat-cards">
+                <div class="stat-card">
+                    <div class="stat-title"><i class="fas fa-microchip"></i> CPU Usage</div>
+                    <div class="stat-value" id="cpuUsage">--%</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="stat-title"><i class="fas fa-temperature-high"></i> CPU Temp</div>
+                    <div class="stat-value" id="cpuTemp">--°C</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title"><i class="fas fa-memory"></i> Memory</div>
+                    <div class="stat-value" id="memoryUsage">-- GB / -- GB</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title"><i class="fas fa-hdd"></i> Disk</div>
+                    <div class="stat-value" id="diskUsage">-- GB / -- GB</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resource Usage Panel -->
+        <div class="panel panel-full">
+            <div class="panel-header">
+                <div class="panel-title"><i class="fas fa-chart-line"></i> Resource Usage</div>
+                <div class="status-badge" id="connectionStatus">
+                    <i class="fas fa-circle-notch fa-spin"></i> Connecting...
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="usageChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Processes Panel -->
+        <div class="panel panel-full">
+            <div class="panel-header">
+                <div class="panel-title"><i class="fas fa-tasks"></i> Running Processes</div>
+                <div class="stat-title"><i class="fas fa-info-circle"></i> Showing processes with CPU > 0.1%</div>
+            </div>
+            <div class="auto-terminate-controls">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="autoTerminateToggle">
+                    <span class="slider"></span>
+                </label>
+                <span>Auto-terminate processes running > 5 minutes</span>
+                <span id="autoTerminateStatus" class="status-badge status-disconnected">
+                    <i class="fas fa-power-off"></i> Inactive
+                </span>
+            </div>
+            <div class="process-list" id="userProcesses">
+                <div class="process-item pulse">
+                    <div class="process-name">Loading processes...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Live Process Monitor • Updated in real-time • <span id="lastUpdate">--:--:--</span></p>
+        </div>
+    </div>
+
+    <script>
+        let socket;
+        let cpuData = [], memoryData = [], diskData = [];
+        let labels = [];
+        let chart;
+        let lastUpdateTime = document.getElementById('lastUpdate');
+        let autoTerminateEnabled = false;
+        let processStartTimes = {}; // Track process start times
+        let terminationQueue = {}; // Track processes marked for termination
+
+        // Initialize particles.js
+        particlesJS("particles-js", {
+            particles: {
+                number: { value: 80, density: { enable: true, value_area: 800 } },
+                color: { value: "#6366f1" },
+                shape: { type: "circle" },
+                opacity: { value: 0.5, random: true },
+                size: { value: 3, random: true },
+                line_linked: { enable: true, distance: 150, color: "#6366f1", opacity: 0.2, width: 1 },
+                move: { enable: true, speed: 2, direction: "none", random: true, straight: false, out_mode: "out" }
+            },
+            interactivity: {
+                detect_on: "canvas",
+                events: {
+                    onhover: { enable: true, mode: "repulse" },
+                    onclick: { enable: true, mode: "push" }
+                }
+            }
+        });
+
+        function connectWebSocket() {
+            const statusElement = document.getElementById('connectionStatus');
+            statusElement.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Connecting...';
+            statusElement.className = 'status-badge status-connecting';
+
+            socket = new WebSocket("ws://localhost:8090");
+
+            socket.onopen = () => {
+                console.log("Connected to server");
+                statusElement.innerHTML = '<i class="fas fa-check-circle"></i> Connected (Live)';
+                statusElement.className = 'status-badge status-connected';
+            };
+
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    updateLastUpdateTime();
+                    
+                    // Update system stats
+                    document.getElementById('uptime').innerHTML = `<i class="fas fa-clock"></i> ${data.uptime}`;
+                    document.getElementById('cpuUsage').textContent = `${data.cpu.usage}%`;
+                    document.getElementById('cpuTemp').textContent = data.cpu.temp;
+                    document.getElementById('memoryUsage').textContent = `${data.memory.used} / ${data.memory.total}`;
+                    document.getElementById('diskUsage').textContent = `${data.disk.used} / ${data.disk.total}`;
+
+                    // Update process list and track start times
+                    const processList = document.getElementById('userProcesses');
+                    if (data.userProcesses.length > 0) {
+                        const now = Date.now();
+                        processList.innerHTML = data.userProcesses.map(p => {
+                            const pid = p.pid;
+                            const processKey = `${pid}-${p.name}`;
+                            
+                            // Track process start time if not already tracked
+                            if (!processStartTimes[processKey]) {
+                                processStartTimes[processKey] = now;
+                            }
+                            
+                            const runningTime = now - processStartTimes[processKey];
+                            const runningMinutes = Math.floor(runningTime / (1000 * 60));
+                            const runningSeconds = Math.floor((runningTime % (1000 * 60)) / 1000);
+                            const runningTimeStr = `${runningMinutes}m ${runningSeconds}s`;
+                            
+                            // Determine if process should be marked for termination
+                            const shouldTerminate = autoTerminateEnabled && runningTime > 5 * 60 * 1000;
+                            const isQueuedForTermination = terminationQueue[pid];
+                            
+                            // Add warning/danger classes based on running time
+                            let processClass = '';
+                            if (runningTime > 3 * 60 * 1000 && runningTime <= 5 * 60 * 1000) {
+                                processClass = 'warning pulse-warning';
+                            } else if (runningTime > 5 * 60 * 1000) {
+                                processClass = 'danger pulse-danger';
+                            }
+                            
+                            return `
+                                <div class="process-item ${processClass}" id="process-${pid}">
+                                    <div class="process-name" title="${p.name}">
+                                        <i class="fas fa-cog"></i> ${p.name}
+                                        ${isQueuedForTermination ? '<span style="color: var(--danger);">(Terminating...)</span>' : ''}
+                                    </div>
+                                    <div class="process-pid">PID: ${pid}</div>
+                                    <div class="process-cpu ${parseFloat(p.cpu) > 20 ? 'high' : ''}">
+                                        <i class="fas fa-bolt"></i> ${p.cpu}
+                                    </div>
+                                    <div class="process-time" title="Running time">
+                                        <i class="fas fa-clock"></i> ${runningTimeStr}
+                                    </div>
+                                    <div class="process-actions">
+                                        ${shouldTerminate && !isQueuedForTermination ? `
+                                        <button class="btn btn-warning" onclick="queueForTermination(${pid}, '${p.name.replace(/'/g, "\\'")}')">
+                                            <i class="fas fa-hourglass-end"></i> Queue
+                                        </button>
+                                        ` : ''}
+                                        <button class="btn btn-danger" onclick="requestTermination(${pid}, '${p.name.replace(/'/g, "\\'")}')">
+                                            <i class="fas fa-skull"></i> Terminate
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                        
+                        // Auto-terminate processes if enabled
+                        if (autoTerminateEnabled) {
+                            data.userProcesses.forEach(p => {
+                                const pid = p.pid;
+                                const processKey = `${pid}-${p.name}`;
+                                const runningTime = now - (processStartTimes[processKey] || now);
+                                
+                                if (runningTime > 5 * 60 * 1000 && !terminationQueue[pid]) {
+                                    queueForTermination(pid, p.name);
+                                }
+                            });
+                        }
+                    } else {
+                        processList.innerHTML = '<div class="process-item">No active processes found</div>';
+                    }
+
+                    // Update chart data
+                    labels.push(new Date().toLocaleTimeString());
+                    cpuData.push(parseFloat(data.cpu.usage) || 0);
+                    memoryData.push(parseFloat(data.memory.used.split(' ')[0]) || 0);
+                    diskData.push(parseFloat(data.disk.used.split(' ')[0]) || 0);
+
+                    if (labels.length > 15) {
+                        labels.shift();
+                        cpuData.shift();
+                        memoryData.shift();
+                        diskData.shift();
+                    }
+
+                    updateChart();
+                } catch (error) {
+                    console.error("Error processing message:", error);
+                }
+            };
+
+            socket.onerror = (error) => {
+                console.error("WebSocket error:", error);
+                statusElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Connection Error';
+                statusElement.className = 'status-badge status-disconnected';
+            };
+
+            socket.onclose = () => {
+                statusElement.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Reconnecting...';
+                statusElement.className = 'status-badge status-connecting';
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        function updateLastUpdateTime() {
+            const now = new Date();
+            lastUpdateTime.textContent = now.toLocaleTimeString();
+        }
+
+        function requestTermination(pid, name) {
+            if (confirm(`Are you sure you want to terminate:\n\n${name}\n(PID: ${pid})?`)) {
+                socket.send(JSON.stringify({ action: "terminate", pid }));
+                // Remove from queue if it was queued
+                if (terminationQueue[pid]) {
+                    delete terminationQueue[pid];
+                    updateTerminationStatus();
+                }
+            }
+        }
+
+        function queueForTermination(pid, name) {
+            if (confirm(`Queue for termination:\n\n${name}\n(PID: ${pid})?\n\nProcess will be terminated in the next cycle.`)) {
+                terminationQueue[pid] = true;
+                updateTerminationStatus();
+                // Highlight the process in the UI
+                const processElement = document.getElementById(`process-${pid}`);
+                if (processElement) {
+                    processElement.classList.add('pulse-danger');
+                }
+            }
+        }
+
+        function updateTerminationStatus() {
+            const statusElement = document.getElementById('autoTerminateStatus');
+            const count = Object.keys(terminationQueue).length;
+            
+            if (count > 0) {
+                statusElement.innerHTML = `<i class="fas fa-hourglass-half"></i> ${count} queued`;
+                statusElement.className = 'status-badge status-warning';
+            } else {
+                statusElement.innerHTML = autoTerminateEnabled 
+                    ? '<i class="fas fa-check-circle"></i> Active' 
+                    : '<i class="fas fa-power-off"></i> Inactive';
+                statusElement.className = autoTerminateEnabled 
+                    ? 'status-badge status-connected' 
+                    : 'status-badge status-disconnected';
+            }
+        }
+
+        function updateChart() {
+            if (!chart) {
+                const ctx = document.getElementById('usageChart').getContext('2d');
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: "CPU Usage %",
+                                data: cpuData,
+                                borderColor: '#6366f1',
+                                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.3,
+                                pointBackgroundColor: '#6366f1',
+                                pointRadius: 3,
+                                pointHoverRadius: 5,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: "Memory Used (GB)",
+                                data: memoryData,
+                                borderColor: '#10b981',
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.3,
+                                pointBackgroundColor: '#10b981',
+                                pointRadius: 3,
+                                pointHoverRadius: 5,
+                                yAxisID: 'y1'
+                            },
+                            {
+                                label: "Disk Used (GB)",
+                                data: diskData,
+                                borderColor: '#f59e0b',
+                                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                                borderWidth: 2,
+                                tension: 0.3,
+                                pointBackgroundColor: '#f59e0b',
+                                pointRadius: 3,
+                                pointHoverRadius: 5,
+                                yAxisID: 'y1'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    color: '#f8fafc',
+                                    font: {
+                                        family: 'Inter'
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                                titleColor: '#f8fafc',
+                                bodyColor: '#f8fafc',
+                                borderColor: 'rgba(255,255,255,0.1)',
+                                borderWidth: 1,
+                                padding: 12,
+                                usePointStyle: true,
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += context.parsed.y.toFixed(2);
+                                            if (context.datasetIndex === 0) {
+                                                label += '%';
+                                            } else {
+                                                label += ' GB';
+                                            }
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: {
+                                    color: 'rgba(255,255,255,0.05)'
+                                },
+                                ticks: {
+                                    color: '#94a3b8'
+                                }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: 'CPU Usage (%)',
+                                    color: '#94a3b8'
+                                },
+                                min: 0,
+                                max: 100,
+                                grid: {
+                                    color: 'rgba(255,255,255,0.05)'
+                                },
+                                ticks: {
+                                    color: '#94a3b8'
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: 'Memory/Disk (GB)',
+                                    color: '#94a3b8'
+                                },
+                                grid: {
+                                    drawOnChartArea: false,
+                                    color: 'rgba(255,255,255,0.05)'
+                                },
+                                ticks: {
+                                    color: '#94a3b8'
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                chart.data.labels = labels;
+                chart.data.datasets[0].data = cpuData;
+                chart.data.datasets[1].data = memoryData;
+                chart.data.datasets[2].data = diskData;
+                chart.update();
+            }
+        }
+
+        // Initialize connection
+        connectWebSocket();
+
+        // Set up auto-termination toggle
+        document.getElementById('autoTerminateToggle').addEventListener('change', function(e) {
+            autoTerminateEnabled = e.target.checked;
+            updateTerminationStatus();
+            
+            if (!autoTerminateEnabled) {
+                // Clear the queue when auto-terminate is turned off
+                terminationQueue = {};
+                updateTerminationStatus();
+            }
+        });
+    </script>
+</body>
+</html>
